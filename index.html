@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Visual Jazz Theory - True Swing</title>
+    <style>
+        /* --- Base Styles --- */
+        body { background-color: #1a1a1a; color: #eee; font-family: "Helvetica Neue", Arial, sans-serif; text-align: center; padding: 20px; user-select: none; margin: 0; -webkit-tap-highlight-color: transparent; }
+        
+        /* タイトル周り */
+        h1 { margin: 0 0 15px 0; font-size: clamp(20px, 5vw, 28px); color: #ddd; letter-spacing: 1px; line-height: 1.4; }
+        .badge { display: inline-block; font-size: 12px; color: #00aa66; vertical-align: middle; border: 1px solid #00aa66; padding: 2px 6px; border-radius: 4px; margin-left: 5px; white-space: nowrap; }
+
+        .main-container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; padding-bottom: 50px; }
+
+        /* 凡例 */
+        .legend { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 15px; padding: 10px 20px; background: #333; border-radius: 50px; margin-bottom: 10px; border: 1px solid #555; max-width: 100%; box-sizing: border-box; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+        /* コード表示 (レスポンシブ対応) */
+        .chord-display { 
+            font-size: clamp(40px, 10vw, 64px); 
+            font-weight: 800; 
+            min-height: 70px; 
+            margin: 10px 0; 
+            color: #ffd700; 
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); 
+            font-family: "Courier New", monospace;
+            line-height: 1.2;
+        }
+
+        /* 指板 (スクロール対応ラッパー) */
+        .fretboard-wrapper {
+            width: 100%;
+            overflow-x: auto; /* スマホでスクロール可能に */
+            -webkit-overflow-scrolling: touch;
+            border-radius: 4px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            background-color: #2a2a2a; /* 背景色を追加 */
+        }
+        
+        .fretboard { 
+            position: relative; 
+            height: 220px; 
+            background-color: #4a3c31; 
+            border: 6px solid #2a2a2a; 
+            border-radius: 4px; 
+            /* スマホでも縮こまらないように最小幅を確保 */
+            min-width: 600px; 
+            box-sizing: border-box;
+        }
+
+        .string { position: absolute; left: 0; right: 0; height: 2px; background-color: #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.5); pointer-events: none; }
+        .fret-line { position: absolute; top: 0; bottom: 0; width: 4px; background-color: #888; border-right: 2px solid #555; pointer-events: none; }
+        .fret-number { position: absolute; bottom: 5px; width: 100%; text-align: center; font-size: 12px; color: #bbb; font-weight: bold; opacity: 0.7; }
+        
+        .note-marker { 
+            position: absolute; 
+            width: 28px; height: 28px; 
+            border-radius: 50%; 
+            transform: translate(-50%, -50%); 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 13px; 
+            color: white; 
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.8); 
+            z-index: 10; 
+            transition: all 0.2s ease-out; 
+        }
+
+        /* 色定義 */
+        .color-blue { background: radial-gradient(circle, #00aaff 0%, #0077cc 100%); box-shadow: 0 0 15px #00aaff; border: 2px solid white; }
+        .color-green { background: radial-gradient(circle, #00ff88 0%, #00cc66 100%); box-shadow: 0 0 15px #00ff88; }
+        .color-red { background: radial-gradient(circle, #ff4444 0%, #cc0000 100%); box-shadow: 0 0 20px #ff2222; z-index: 20; }
+
+        /* パネル共通 */
+        .panel { background: #252525; padding: 15px; border-radius: 8px; border: 1px solid #444; text-align: left; }
+        .panel-title { font-size: 14px; color: #00ff88; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 5px; }
+
+        /* ボタン・入力 */
+        button { 
+            padding: 10px 16px; /* タッチしやすいように少し拡大 */
+            font-size: 14px; cursor: pointer; border-radius: 4px; border: none; color: white; transition: 0.2s; font-weight: bold; 
+            touch-action: manipulation;
+        }
+        button:hover { opacity: 0.8; }
+        button:active { transform: translateY(2px); }
+        .btn-primary { background: #0088cc; }
+        .btn-danger { background: #cc3333; }
+        .btn-success { background: #00aa66; }
+        .btn-dark { background: #444; }
+        
+        select, input[type=text] { 
+            padding: 10px; 
+            background: #333; color: white; border: 1px solid #555; border-radius: 4px; font-size: 14px; 
+            box-sizing: border-box;
+        }
+        select:focus, input:focus { outline: 2px solid #0088cc; }
+
+        /* コントロールパネル (詳細レスポンシブ) */
+        .play-controls { display: flex; flex-direction: column; gap: 15px; }
+        .play-main-row { display: flex; gap: 10px; align-items: center; }
+        .main-play-btn { flex: 1; padding: 15px; font-size: 18px; background: linear-gradient(to bottom, #444, #222); border: 1px solid #666; }
+        .main-play-btn.active { background: linear-gradient(to bottom, #cc3333, #990000); border-color: #ff5555; }
+
+        .settings-row { display: flex; align-items: center; gap: 20px; color: #aaa; font-size: 14px; flex-wrap: wrap; }
+        .setting-group { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+        .setting-group.border-left { border-left: 1px solid #555; padding-left: 15px; }
+
+        input[type=range] { flex: 1; cursor: pointer; min-width: 100px; }
+
+        /* リズムスイッチ */
+        .rhythm-switch { display: flex; background: #111; border-radius: 4px; padding: 2px; border: 1px solid #555; }
+        .rhythm-switch label { padding: 5px 10px; cursor: pointer; border-radius: 2px; font-size: 12px; flex: 1; text-align: center; }
+        .rhythm-switch input { display: none; }
+        .rhythm-switch input:checked + span { background: #00ff88; color: #000; font-weight: bold; }
+        .rhythm-switch span { display: block; padding: 4px 8px; border-radius: 2px; }
+
+        /* ライブラリ & ビルダーエリア */
+        .storage-area { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .save-group { display: flex; gap: 5px; flex: 1; min-width: 200px; }
+        .save-group input { flex: 1; }
+
+        .builder-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .chord-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 50px; padding: 10px; background: #111; border: 1px inset #333; border-radius: 4px; }
+        .chord-card { background: #3a3a3a; padding: 6px 12px; border-radius: 4px; font-size: 14px; display: flex; align-items: center; gap: 8px; border: 1px solid #555; animation: popIn 0.3s; }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+        .delete-btn { background: #ff5555; width: 20px; height: 20px; font-size: 12px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #333; font-size: 12px; color: #666; word-break: break-all; }
+        .footer a { color: #0088cc; text-decoration: none; transition: 0.2s; }
+        .footer a:hover { color: #00aaff; text-decoration: underline; }
+
+        /* === MOBILE MEDIA QUERIES === */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            
+            /* 設定行を縦積みに */
+            .settings-row { flex-direction: column; align-items: stretch; gap: 15px; }
+            .setting-group { width: 100%; justify-content: space-between; }
+            .setting-group.border-left { border-left: none; padding-left: 0; border-top: 1px solid #444; padding-top: 15px; }
+            
+            /* 保存エリアの調整 */
+            .storage-area > select, .storage-area > button { width: 100%; flex: 1 1 48%; }
+            .storage-area > span { display: none; } /* 区切り線を消す */
+            .save-group { width: 100%; flex: 1 1 100%; }
+
+            /* ビルダーコントロール */
+            .builder-controls > select { flex: 1; }
+            .builder-controls > button { flex: 1; }
+        }
+
+        @media (max-width: 480px) {
+            .rhythm-switch label { font-size: 10px; padding: 4px; }
+            .legend { gap: 10px; padding: 8px 15px; }
+            .legend-item { font-size: 10px; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        
+        <div>
+            <h1>Visual Jazz Theory <span class="badge">SWING MASTER</span></h1>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot color-blue"></div> Code Tone</div>
+                <div class="legend-item"><div class="legend-dot color-green"></div> Tension</div>
+                <div class="legend-item"><div class="legend-dot color-red"></div> Avoid</div>
+            </div>
+            <div id="currentChord" class="chord-display">Let's Swing.</div>
+        </div>
+
+        <div class="fretboard-wrapper">
+            <div id="fretboard" class="fretboard"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🎮 CONTROL PANEL</div>
+            <div class="play-controls">
+                <div class="play-main-row">
+                    <button id="playBtn" class="main-play-btn" onclick="togglePlay()">▶ START SESSION</button>
+                </div>
+                
+                <div class="settings-row">
+                    <div class="setting-group">
+                        <label id="bpmDisplay" style="font-weight:bold; color:#00ff88; width: 70px;">BPM: 120</label>
+                        <input type="range" id="bpmSlider" min="40" max="300" value="120" oninput="updateBpm(this.value)">
+                    </div>
+                    
+                    <div class="setting-group border-left">
+                        <span>Click:</span>
+                        <div class="rhythm-switch">
+                            <label><input type="radio" name="rhythmMode" value="on" checked><span>表 (1-4)</span></label>
+                            <label><input type="radio" name="rhythmMode" value="jazz"><span>Jazz (2&4)</span></label>
+                        </div>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="clickToggle" checked> ON</label>
+                    </div>
+
+                    <div class="setting-group border-left">
+                        <span>Display:</span>
+                        <label><input type="radio" name="disp" value="note" checked onclick="redraw()"> 音名</label>
+                        <label><input type="radio" name="disp" value="degree" onclick="redraw()"> 度数</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">📚 LIBRARY</div>
+            <div class="storage-area">
+                <select id="presetSelect" onchange="loadPreset(this.value)">
+                    <option value="">-- プリセット曲 --</option>
+                    <option value="autumn">🍂 枯葉 (Gm)</option>
+                    <option value="flyme">🌕 Fly Me To The Moon (C)</option>
+                    <option value="f_blues">🎷 F Blues</option>
+                    <option value="two_five">🔄 2-5-1-6 Loop</option>
+                </select>
+                <span style="color:#555">|</span>
+                <select id="userSongSelect">
+                    <option value="">-- ユーザー保存曲 --</option>
+                </select>
+                <button class="btn-primary" onclick="loadUserSong()">読込</button>
+                <button class="btn-danger" onclick="deleteUserSong()">削除</button>
+                
+                <div class="save-group">
+                    <input type="text" id="saveName" placeholder="曲名を入力...">
+                    <button class="btn-success" onclick="saveCurrentSong()">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🛠️ CHORD EDITOR</div>
+            <div class="builder-controls">
+                <select id="rootSelect">
+                    <option value="0">C</option><option value="1">Db</option><option value="2">D</option>
+                    <option value="3">Eb</option><option value="4">E</option><option value="5">F</option>
+                    <option value="6">Gb</option><option value="7">G</option><option value="8">Ab</option>
+                    <option value="9">A</option><option value="10">Bb</option><option value="11">B</option>
+                </select>
+                <select id="typeSelect">
+                    <option value="maj7">maj7</option><option value="m7">m7</option><option value="7">7</option>
+                    <option value="m7b5">m7b5</option><option value="dim">dim</option>
+                </select>
+                <button class="btn-primary" onclick="addChordBtn()">＋ 追加</button>
+                <button class="btn-dark" onclick="clearAll()">全消去</button>
+            </div>
+            <div id="chordList" class="chord-list">
+                <div style="color:#666; font-size:12px;">ここにコードを追加してください</div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Special Thanks To <a href="https://toshikinunokawa.com/online-salon/" target="_blank">Nunokawa Toshiki Online Salon</a>
+        </div>
+
+    </div>
+
+    <script>
+        // --- データ定義 ---
+        const openStrings = [64, 59, 55, 50, 45, 40]; 
+        const noteNames = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+        const degreeNames = ["R", "b9", "9", "b3", "3", "11", "#11", "5", "b13", "13", "b7", "7"];
+
+        const chordRules = {
+            "maj7": { rules: {0:"blue",4:"blue",7:"blue",11:"blue",2:"green",9:"green",5:"red"}, voicing: [0,4,7,11] },
+            "m7":   { rules: {0:"blue",3:"blue",7:"blue",10:"blue",2:"green",5:"green",9:"green"}, voicing: [0,3,7,10] },
+            "7":    { rules: {0:"blue",4:"blue",7:"blue",10:"blue",2:"green",9:"green",5:"red"}, voicing: [0,4,7,10] },
+            "m7b5": { rules: {0:"blue",3:"blue",6:"blue",10:"blue",5:"green",8:"green",2:"red"}, voicing: [0,3,6,10] },
+            "dim":  { rules: {0:"blue",3:"blue",6:"blue",9:"blue",2:"green",5:"green",8:"green",11:"green"}, voicing: [0,3,6,9] }
+        };
+
+        const presets = {
+            "autumn": [{r:0,t:"m7"},{r:5,t:"7"},{r:10,t:"maj7"},{r:3,t:"maj7"},{r:9,t:"m7b5"},{r:2,t:"7"},{r:7,t:"m7"},{r:7,t:"m7"}],
+            "flyme": [{r:9,t:"m7"},{r:2,t:"m7"},{r:7,t:"7"},{r:0,t:"maj7"},{r:5,t:"maj7"},{r:11,t:"m7b5"},{r:4,t:"7"},{r:9,t:"m7"}],
+            "f_blues": [{r:5,t:"7"},{r:10,t:"7"},{r:5,t:"7"},{r:5,t:"7"},{r:10,t:"7"},{r:10,t:"7"},{r:5,t:"7"},{r:2,t:"7"},{r:7,t:"m7"},{r:0,t:"7"},{r:5,t:"7"},{r:0,t:"7"}],
+            "two_five": [{r:2,t:"m7"},{r:7,t:"7"},{r:0,t:"maj7"},{r:9,t:"7"}]
+        };
+
+        let playList = [];
+
+        // --- ロジック ---
+        function addChord(r, t) {
+            const rootName = noteNames[r];
+            const displayName = rootName + t;
+            const ruleData = chordRules[t];
+            playList.push({ displayName, rootNote: r, type: t, rules: ruleData.rules, voicing: ruleData.voicing });
+            renderList();
+        }
+        function addChordBtn() {
+            const r = parseInt(document.getElementById('rootSelect').value);
+            const t = document.getElementById('typeSelect').value;
+            addChord(r, t);
+        }
+        function removeChord(idx) { playList.splice(idx, 1); renderList(); }
+        function clearAll() { playList = []; renderList(); }
+        
+        function renderList() {
+            const el = document.getElementById('chordList');
+            el.innerHTML = '';
+            if(playList.length===0) { el.innerHTML = '<div style="color:#666; font-size:12px;">ここにコードを追加してください</div>'; return; }
+            playList.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'chord-card';
+                div.innerHTML = `<span>${c.displayName}</span><button class="delete-btn" onclick="removeChord(${i})">×</button>`;
+                el.appendChild(div);
+            });
+        }
+
+        // 保存系
+        function updateStorageList() {
+            const sel = document.getElementById('userSongSelect');
+            sel.innerHTML = '<option value="">-- ユーザー保存曲 --</option>';
+            Object.keys(localStorage).forEach(k => {
+                if(k.startsWith('vjt_song_')) {
+                    const name = k.replace('vjt_song_', '');
+                    const opt = document.createElement('option'); opt.value=name; opt.innerText=name; sel.appendChild(opt);
+                }
+            });
+        }
+        function saveCurrentSong() {
+            const name = document.getElementById('saveName').value;
+            if(!name || playList.length===0) { alert("曲名とコードが必要です"); return; }
+            const saveData = playList.map(c => ({ r: c.rootNote, t: c.type }));
+            localStorage.setItem('vjt_song_' + name, JSON.stringify(saveData));
+            alert(`『${name}』を保存しました`);
+            updateStorageList();
+        }
+        function loadUserSong() {
+            const name = document.getElementById('userSongSelect').value;
+            if(!name) return;
+            const data = JSON.parse(localStorage.getItem('vjt_song_' + name));
+            playList = []; data.forEach(c => addChord(c.r, c.t));
+        }
+        function deleteUserSong() {
+            const name = document.getElementById('userSongSelect').value;
+            if(!name) return;
+            if(confirm(`削除しますか？`)) { localStorage.removeItem('vjt_song_' + name); updateStorageList(); }
+        }
+        function loadPreset(key) {
+            if(!key) return;
+            playList = []; presets[key].forEach(c => addChord(c.r, c.t));
+        }
+
+        // --- エンジン ---
+        let isPlaying = false;
+        let currentIndex = 0;
+        let beatIndex = 0;
+        let timerId = null;
+        let audioCtx = null;
+        let countInRemaining = 0;
+
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+        function playClick(time, isAccent) {
+            if (!document.getElementById('clickToggle').checked) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            let freq = isAccent ? 1200 : 600; 
+            let vol = isAccent ? 0.3 : 0.05;
+
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(vol, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+            
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(time); osc.stop(time + 0.05);
+        }
+
+        function playTone(noteNum, dur, startTime) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = 440 * Math.pow(2, (noteNum-69)/12);
+            
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+            
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(startTime); osc.stop(startTime + dur);
+        }
+
+        function drawFretboard() {
+            const board = document.getElementById('fretboard');
+            const disp = document.getElementById('currentChord');
+            if(playList.length===0) { board.innerHTML=''; disp.innerText="No Chord"; return; }
+            
+            const c = playList[currentIndex];
+            board.innerHTML = ''; disp.innerText = c.displayName;
+            const mode = document.querySelector('input[name="disp"]:checked').value;
+
+            for(let s=0; s<6; s++){
+                let st=document.createElement('div'); st.className='string'; st.style.top=(s*35+25)+'px'; board.appendChild(st);
+            }
+            for(let f=0; f<=12; f++){
+                let fr=document.createElement('div'); fr.className='fret-line'; fr.style.left=(f*7.6)+'%'; 
+                if(f>0) {
+                    let nm=document.createElement('div'); nm.className='fret-number'; nm.innerText=f; fr.appendChild(nm);
+                    board.appendChild(fr);
+                    for(let s=0; s<6; s++){
+                        let noteNum = openStrings[s]+f;
+                        let interval = (noteNum%12 - c.rootNote + 12)%12;
+                        let color = c.rules[interval];
+                        if(color){
+                            let mk=document.createElement('div'); mk.className=`note-marker color-${color}`;
+                            mk.style.left=(f*7.6 - 3.8)+'%'; mk.style.top=(s*35+25)+'px';
+                            mk.innerText = (mode==='note') ? noteNames[noteNum%12] : degreeNames[interval];
+                            board.appendChild(mk);
+                        }
+                    }
+                } else board.appendChild(fr);
+            }
+        }
+
+        function togglePlay() {
+            const btn = document.getElementById('playBtn');
+            if(isPlaying) {
+                clearTimeout(timerId); isPlaying=false;
+                btn.innerText="▶ START SESSION"; btn.classList.remove('active');
+            } else {
+                if(playList.length===0){ alert("コードがありません"); return; }
+                isPlaying=true; initAudio();
+                btn.innerText="■ STOP"; btn.classList.add('active');
+                currentIndex=0; 
+                beatIndex=0;
+                countInRemaining = 4;
+                step();
+            }
+        }
+
+        function step() {
+            if(!isPlaying) return;
+            const bpm = document.getElementById('bpmSlider').value;
+            const secPerBeat = 60/bpm;
+            const now = audioCtx.currentTime;
+
+            if (countInRemaining > 0) {
+                document.getElementById('currentChord').innerText = "Count: " + countInRemaining;
+                document.getElementById('fretboard').innerHTML = '';
+                playClick(now, true);
+                countInRemaining--;
+                timerId = setTimeout(step, secPerBeat * 1000);
+                return;
+            }
+
+            if(beatIndex === 0) {
+                drawFretboard();
+                const c = playList[currentIndex];
+                let rootP = 48 + c.rootNote; if(rootP>60) rootP-=12;
+                c.voicing.forEach(v => playTone(rootP+v, secPerBeat*4, now));
+                currentIndex = (currentIndex+1)%playList.length;
+            }
+
+            const rhythmMode = document.querySelector('input[name="rhythmMode"]:checked').value;
+            
+            if (rhythmMode === 'on') {
+                playClick(now, beatIndex === 0);
+            } else {
+                if (beatIndex === 1 || beatIndex === 3) {
+                    playClick(now, false);
+                }
+            }
+
+            beatIndex = (beatIndex + 1) % 4;
+            timerId = setTimeout(step, secPerBeat * 1000);
+        }
+
+        function updateBpm(v) { document.getElementById('bpmDisplay').innerText = `BPM: ${v}`; }
+        function redraw() { drawFretboard(); }
+        
+        // 初期化
+        updateStorageList();
+
+    </script>
+</body>
+</html>
